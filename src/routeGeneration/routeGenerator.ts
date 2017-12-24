@@ -94,6 +94,7 @@ export class RouteGenerator {
             };
           }),
           modulePath: this.getRelativeImportPath(controller.location),
+          moduleDirectory: path.dirname(this.getRelativeImportPath(controller.location)),
           name: controller.name,
           path: controller.path,
         };
