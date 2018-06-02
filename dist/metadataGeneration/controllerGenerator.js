@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var ts = require("typescript");
 var decoratorUtils_1 = require("./../utils/decoratorUtils");
-var pathUtils_1 = require("./../utils/pathUtils");
 var exceptions_1 = require("./exceptions");
 var methodGenerator_1 = require("./methodGenerator");
 var ControllerGenerator = /** @class */ (function () {
@@ -27,7 +26,7 @@ var ControllerGenerator = /** @class */ (function () {
             location: sourceFile.fileName,
             methods: this.buildMethods(),
             name: this.node.name.text,
-            path: pathUtils_1.normalisePath(this.path, '/'),
+            path: this.path || '',
         };
     };
     ControllerGenerator.prototype.buildMethods = function () {

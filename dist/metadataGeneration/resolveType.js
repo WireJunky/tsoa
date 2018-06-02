@@ -49,6 +49,9 @@ function resolveType(typeNode, parentNode, extractEnum) {
     if (typeNode.kind === ts.SyntaxKind.AnyKeyword) {
         return { dataType: 'any' };
     }
+    if (typeNode.kind === ts.SyntaxKind.TypeLiteral) {
+        return { dataType: 'any' };
+    }
     if (typeNode.kind !== ts.SyntaxKind.TypeReference) {
         throw new exceptions_1.GenerateMetadataError("Unknown type: " + ts.SyntaxKind[typeNode.kind]);
     }
@@ -68,6 +71,9 @@ function resolveType(typeNode, parentNode, extractEnum) {
         }
         if (typeReference.typeName.text === 'Promise' && typeReference.typeArguments && typeReference.typeArguments.length === 1) {
             return resolveType(typeReference.typeArguments[0]);
+        }
+        if (typeReference.typeName.text === 'String') {
+            return { dataType: 'string' };
         }
     }
     if (!extractEnum) {
@@ -274,14 +280,15 @@ function getReferenceType(type, extractEnum, genericTypes) {
         var modelType = getModelTypeDeclaration(type);
         var properties = getModelProperties(modelType, genericTypes);
         var additionalProperties = getModelAdditionalProperties(modelType);
-        var inheritedProperties = getModelInheritedProperties(modelType);
+        var inheritedProperties = getModelInheritedProperties(modelType) || [];
         var referenceType = {
             additionalProperties: additionalProperties,
             dataType: 'refObject',
             description: getNodeDescription(modelType),
-            properties: properties.concat(inheritedProperties),
+            properties: inheritedProperties,
             refName: refNameWithGenerics,
         };
+        referenceType.properties = referenceType.properties.concat(properties);
         localReferenceTypeCache[refNameWithGenerics] = referenceType;
         return referenceType;
     }
@@ -412,17 +419,46 @@ function getModelTypeDeclaration(type) {
         throw new exceptions_1.GenerateMetadataError("No matching model found for referenced type " + typeName + ".");
     }
     if (modelTypes.length > 1) {
+        // remove types that are from typescript e.g. 'Account'
+        modelTypes = modelTypes.filter(function (modelType) {
+            if (modelType.getSourceFile().fileName.replace(/\\/g, '/').toLowerCase().indexOf('node_modules/typescript') > -1) {
+                return false;
+            }
+            return true;
+        });
+        /**
+         * Model is marked with '@tsoaModel', indicating that it should be the 'canonical' model used
+         */
+        var designatedModels = modelTypes.filter(function (modelType) {
+            var isDesignatedModel = jsDocUtils_1.isExistJSDocTag(modelType, function (tag) { return tag.tagName.text === 'tsoaModel'; });
+            return isDesignatedModel;
+        });
+        if (designatedModels.length > 0) {
+            if (designatedModels.length > 1) {
+                throw new exceptions_1.GenerateMetadataError("Multiple models for " + typeName + " marked with '@tsoaModel'; '@tsoaModel' should only be applied to one model.");
+            }
+            modelTypes = designatedModels;
+        }
+    }
+    if (modelTypes.length > 1) {
         var conflicts = modelTypes.map(function (modelType) { return modelType.getSourceFile().fileName; }).join('"; "');
         throw new exceptions_1.GenerateMetadataError("Multiple matching models found for referenced type " + typeName + "; please make model names unique. Conflicts found: \"" + conflicts + "\".");
     }
     return modelTypes[0];
 }
 function getModelProperties(node, genericTypes) {
+    var isIgnored = function (e) {
+        var ignore = jsDocUtils_1.isExistJSDocTag(e, function (tag) { return tag.tagName.text === 'ignore'; });
+        return ignore;
+    };
     // Interface model
     if (node.kind === ts.SyntaxKind.InterfaceDeclaration) {
         var interfaceDeclaration = node;
         return interfaceDeclaration.members
-            .filter(function (member) { return member.kind === ts.SyntaxKind.PropertySignature; })
+            .filter(function (member) {
+            var ignore = isIgnored(member);
+            return !ignore && member.kind === ts.SyntaxKind.PropertySignature;
+        })
             .map(function (member) {
             var propertyDeclaration = member;
             var identifier = propertyDeclaration.name;
@@ -457,7 +493,7 @@ function getModelProperties(node, genericTypes) {
                 description: getNodeDescription(propertyDeclaration),
                 name: identifier.text,
                 required: !propertyDeclaration.questionToken,
-                type: resolveType(aType),
+                type: resolveType(aType, aType.parent),
                 validators: validatorUtils_1.getPropertyValidators(propertyDeclaration),
             };
         });
@@ -488,6 +524,10 @@ function getModelProperties(node, genericTypes) {
     // Class model
     var classDeclaration = node;
     var properties = classDeclaration.members
+        .filter(function (member) {
+        var ignore = isIgnored(member);
+        return !ignore;
+    })
         .filter(function (member) { return member.kind === ts.SyntaxKind.PropertyDeclaration; })
         .filter(function (member) { return hasPublicModifier(member); });
     var classConstructor = classDeclaration
@@ -579,7 +619,7 @@ function getNodeDescription(node) {
         // TypeScript won't parse jsdoc if the flag is 4, i.e. 'Property'
         symbol.flags = 0;
     }
-    var comments = symbol.getDocumentationComment();
+    var comments = symbol.getDocumentationComment(metadataGenerator_1.MetadataGenerator.current.typeChecker);
     if (comments.length) {
         return ts.displayPartsToString(comments);
     }

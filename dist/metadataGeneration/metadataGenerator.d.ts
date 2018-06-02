@@ -1,7 +1,7 @@
 import * as ts from 'typescript';
 import { Tsoa } from './tsoa';
 export declare class MetadataGenerator {
-    private readonly ignorePaths;
+    private readonly ignorePaths?;
     static current: MetadataGenerator;
     readonly nodes: ts.Node[];
     readonly typeChecker: ts.TypeChecker;
@@ -15,5 +15,5 @@ export declare class MetadataGenerator {
     AddReferenceType(referenceType: Tsoa.ReferenceType): void;
     GetReferenceType(refName: string): Tsoa.ReferenceType;
     OnFinish(callback: (referenceTypes: Tsoa.ReferenceTypeMap) => void): void;
-    private buildControllers();
+    private buildControllers;
 }

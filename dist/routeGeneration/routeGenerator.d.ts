@@ -7,10 +7,10 @@ export declare class RouteGenerator {
     constructor(metadata: Tsoa.Metadata, options: RoutesConfig);
     GenerateRoutes(middlewareTemplate: string, pathTransformer: (path: string) => string): Promise<void>;
     GenerateCustomRoutes(template: string, pathTransformer: (path: string) => string): void;
-    private buildContent(middlewareTemplate, pathTransformer);
-    private buildModels();
-    private getRelativeImportPath(fileLocation);
-    private buildPropertySchema(source);
-    private buildParameterSchema(source);
-    private buildProperty(type);
+    private buildContent;
+    private buildModels;
+    private getRelativeImportPath;
+    private buildPropertySchema;
+    private buildParameterSchema;
+    private buildProperty;
 }

@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var decoratorUtils_1 = require("./../utils/decoratorUtils");
 var jsDocUtils_1 = require("./../utils/jsDocUtils");
-var pathUtils_1 = require("./../utils/pathUtils");
 var exceptions_1 = require("./exceptions");
 var metadataGenerator_1 = require("./metadataGenerator");
 var parameterGenerator_1 = require("./parameterGenerator");
@@ -38,7 +37,7 @@ var MethodGenerator = /** @class */ (function () {
             method: this.method,
             name: this.node.name.text,
             parameters: this.buildParameters(),
-            path: pathUtils_1.normalisePath(this.path, '/'),
+            path: this.path,
             responses: responses,
             security: this.getSecurity(),
             summary: jsDocUtils_1.getJSDocComment(this.node, 'summary'),

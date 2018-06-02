@@ -145,7 +145,7 @@ var ParameterGenerator = /** @class */ (function () {
         if (!symbol) {
             return undefined;
         }
-        var comments = symbol.getDocumentationComment();
+        var comments = symbol.getDocumentationComment(undefined);
         if (comments.length) {
             return ts.displayPartsToString(comments);
         }

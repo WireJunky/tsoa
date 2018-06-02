@@ -79,9 +79,11 @@ var SpecGenerator = /** @class */ (function () {
         var _this = this;
         var paths = {};
         this.metadata.controllers.forEach(function (controller) {
+            var normalisedControllerPath = pathUtils_1.normalisePath(controller.path, '/');
             // construct documentation using all methods except @Hidden
             controller.methods.filter(function (method) { return !method.isHidden; }).forEach(function (method) {
-                var path = "" + controller.path + method.path;
+                var normalisedMethodPath = pathUtils_1.normalisePath(method.path, '/');
+                var path = pathUtils_1.normalisePath("" + normalisedControllerPath + normalisedMethodPath, '/', '', false);
                 paths[path] = paths[path] || {};
                 _this.buildMethod(controller.name, method, paths[path]);
             });

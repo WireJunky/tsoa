@@ -105,8 +105,8 @@ export class RouteGenerator {
               security: method.security,
             };
           }),
-          modulePath: this.getRelativeImportPath(controller.location),
           moduleDirectory: path.dirname(this.getRelativeImportPath(controller.location)),
+          modulePath: this.getRelativeImportPath(controller.location),
           name: controller.name,
           path: normalisedControllerPath,
         };

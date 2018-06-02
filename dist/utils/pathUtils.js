@@ -7,7 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
  */
 function normalisePath(path, withPrefix, withSuffix, skipPrefixAndSuffixIfEmpty) {
     if (skipPrefixAndSuffixIfEmpty === void 0) { skipPrefixAndSuffixIfEmpty = true; }
-    if (!path && skipPrefixAndSuffixIfEmpty) {
+    if ((!path || path === '/') && skipPrefixAndSuffixIfEmpty) {
         return '';
     }
     if (!path || typeof path !== 'string') {
@@ -15,10 +15,10 @@ function normalisePath(path, withPrefix, withSuffix, skipPrefixAndSuffixIfEmpty)
     }
     // normalise beginning and end of the path
     var normalised = path.replace(/^[/\\\s]+|[/\\\s]+$/g, '');
-    // normalise path between it's sections
-    normalised = normalised.replace(/[/\\\s]+|[/\\\s]+/g, '/');
     normalised = withPrefix ? withPrefix + normalised : normalised;
     normalised = withSuffix ? normalised + withSuffix : normalised;
+    // normalise / signs amount in all path
+    normalised = normalised.replace(/[/\\\s]+/g, '/');
     return normalised;
 }
 exports.normalisePath = normalisePath;

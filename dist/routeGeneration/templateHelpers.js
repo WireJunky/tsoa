@@ -9,7 +9,7 @@ function ValidateParam(property, value, generatedModels, name, fieldErrors, pare
     models = generatedModels;
     if (value === undefined || value === null) {
         if (property.required) {
-            var message_1 = "'" + name + "' is a required";
+            var message_1 = "'" + name + "' is required";
             if (property.validators) {
                 var validators_1 = property.validators;
                 Object.keys(validators_1).forEach(function (key) {

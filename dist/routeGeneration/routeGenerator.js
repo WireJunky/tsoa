@@ -13,7 +13,9 @@ var RouteGenerator = /** @class */ (function () {
         this.tsfmtConfig = {
             editorconfig: true,
             replace: true,
-            tsconfig: true,
+            tsconfig: {
+                newLine: 'LF',
+            },
             tsfmt: true,
             tslint: false,
             verify: true,
@@ -69,29 +71,34 @@ var RouteGenerator = /** @class */ (function () {
         if (env === 'test') {
             canImportByAlias = false;
         }
+        var normalisedBasePath = pathUtils_1.normalisePath(this.options.basePath, '/');
         return routesTemplate({
             authenticationModule: authenticationModule,
-            basePath: pathUtils_1.normalisePath(this.options.basePath, '/'),
+            basePath: normalisedBasePath,
             canImportByAlias: canImportByAlias,
             controllers: this.metadata.controllers.map(function (controller) {
+                var normalisedControllerPath = pathUtils_1.normalisePath(controller.path, '/');
                 return {
                     actions: controller.methods.map(function (method) {
                         var parameterObjs = {};
                         method.parameters.forEach(function (parameter) {
                             parameterObjs[parameter.parameterName] = _this.buildParameterSchema(parameter);
                         });
+                        var normalisedMethodPath = pathTransformer(pathUtils_1.normalisePath(method.path, '/'));
+                        var normalisedFullPath = pathUtils_1.normalisePath("" + normalisedBasePath + normalisedControllerPath + normalisedMethodPath, '/', '', false);
                         return {
+                            fullPath: normalisedFullPath,
                             method: method.method.toLowerCase(),
                             name: method.name,
                             parameters: parameterObjs,
-                            path: pathTransformer(method.path),
+                            path: normalisedMethodPath,
                             security: method.security,
                         };
                     }),
-                    modulePath: _this.getRelativeImportPath(controller.location),
                     moduleDirectory: path.dirname(_this.getRelativeImportPath(controller.location)),
+                    modulePath: _this.getRelativeImportPath(controller.location),
                     name: controller.name,
-                    path: controller.path,
+                    path: normalisedControllerPath,
                 };
             }),
             environment: process.env,

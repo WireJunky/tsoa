@@ -699,7 +699,7 @@ function getNodeDescription(node: UsableDeclaration | ts.PropertyDeclaration | t
     symbol.flags = 0;
   }
 
-  const comments = symbol.getDocumentationComment(undefined);
+  const comments = symbol.getDocumentationComment(MetadataGenerator.current.typeChecker);
   if (comments.length) { return ts.displayPartsToString(comments); }
 
   return undefined;

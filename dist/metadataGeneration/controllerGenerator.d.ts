@@ -8,8 +8,8 @@ export declare class ControllerGenerator {
     constructor(node: ts.ClassDeclaration);
     IsValid(): boolean;
     Generate(): Tsoa.Controller;
-    private buildMethods();
-    private getPath();
-    private getTags();
-    private getSecurity();
+    private buildMethods;
+    private getPath;
+    private getTags;
+    private getSecurity;
 }
