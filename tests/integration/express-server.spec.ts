@@ -8,6 +8,20 @@ import { Gender, GenericModel, GenericRequest, ParameterTestModel, TestClassMode
 const basePath = '/v1';
 
 describe('Express Server', () => {
+  it('can handle get request to root controller`s path', () => {
+    return verifyGetRequest(basePath + '/', (err, res) => {
+      const model = res.body as TestModel;
+      expect(model.id).to.equal(1);
+    });
+  });
+
+  it('can handle get request to root controller`s method path', () => {
+    return verifyGetRequest(basePath + '/rootControllerMethodWithPath', (err, res) => {
+      const model = res.body as TestModel;
+      expect(model.id).to.equal(1);
+    });
+  });
+
   it('can handle get request with no path argument', () => {
     return verifyGetRequest(basePath + '/GetTest', (err, res) => {
       const model = res.body as TestModel;
@@ -50,7 +64,7 @@ describe('Express Server', () => {
   it('returns error if missing required query parameter', () => {
     return verifyGetRequest(basePath + `/GetTest/${1}/${true}/test?booleanParam=true&stringParam=test1234`, (err: any, res: any) => {
       const body = JSON.parse(err.text);
-      expect(body.fields.numberParam.message).to.equal(`'numberParam' is a required`);
+      expect(body.fields.numberParam.message).to.equal(`'numberParam' is required`);
     }, 400);
   });
 
@@ -675,6 +689,7 @@ describe('Express Server', () => {
     model.id = 100;
     model.publicStringProperty = 'test';
     model.stringProperty = 'test';
+    model.account = { id: 1234 };
 
     return model;
   }

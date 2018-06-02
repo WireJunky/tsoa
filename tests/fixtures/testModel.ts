@@ -1,5 +1,6 @@
 /**
  * This is a description of a model
+ * @tsoaModel
  */
 export interface TestModel extends Model {
   /**
@@ -160,7 +161,7 @@ export class ValidateModel {
    */
   public doubleValue: number;
   /**
-   * @isInt
+   * @isInt invalid integer number
    */
   public intValue: number;
   /**
@@ -176,7 +177,7 @@ export class ValidateModel {
    */
   public arrayValue: number[];
   /**
-   * @isDate
+   * @isDate invalid ISO 8601 date format, i.e. YYYY-MM-DD
    */
   public dateValue: Date;
   /**
@@ -217,6 +218,11 @@ export class ValidateModel {
    * @uniqueItems
    */
   public arrayUniqueItem: number[];
+
+  /**
+   * @ignore
+   */
+  public ignoredProperty: string;
 }
 
 /**
@@ -241,10 +247,16 @@ export class TestClassBaseModel {
   public defaultValue1 = 'Default Value 1';
 }
 
+// bug #158
+export class Account {
+  public id: number;
+}
+
 /**
  * This is a description of TestClassModel
  */
 export class TestClassModel extends TestClassBaseModel {
+  public account: Account;
   public defaultValue2 = 'Default Value 2';
   /**
    * This is a description of a public string property
@@ -266,6 +278,12 @@ export class TestClassModel extends TestClassBaseModel {
   /* tslint:disable-next-line */
   stringProperty: string;
   protected protectedStringProperty: string;
+
+  public static typeLiterals = {
+    booleanTypeLiteral: { $type: Boolean },
+    numberTypeLiteral: { $type: Number },
+    stringTypeLiteral: { $type: String },
+  };
 
   /**
    * @param publicConstructorVar This is a description for publicConstructorVar

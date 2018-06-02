@@ -37,7 +37,7 @@ const models: TsoaRoute.Models = {
 export function RegisterRoutes(app: any) {
     {{#each controllers}}
     {{#each actions}}
-        app.{{method}}('{{../../basePath}}{{../path}}{{path}}',
+        app.{{method}}('{{fullPath}}',
             {{#if security.length}}
             authenticateMiddleware({{json security}}),
             {{/if}}
@@ -57,6 +57,9 @@ export function RegisterRoutes(app: any) {
 
             {{#if ../../iocModule}}
             const controller = iocContainer.get<{{../name}}>({{../name}});
+            if (typeof controller['setStatus'] === 'function') {
+                (<any>controller).setStatus(undefined);
+            }
             {{else}}
             const controller = new {{../name}}();
             {{/if}}

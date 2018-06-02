@@ -1,7 +1,7 @@
 import * as indexOf from 'lodash.indexof';
 import * as map from 'lodash.map';
 import * as ts from 'typescript';
-import { getJSDocTagNames } from './../utils/jsDocUtils';
+import { getJSDocTagNames, isExistJSDocTag } from './../utils/jsDocUtils';
 import { getPropertyValidators } from './../utils/validatorUtils';
 import { GenerateMetadataError } from './exceptions';
 import { MetadataGenerator } from './metadataGenerator';
@@ -57,6 +57,10 @@ export function resolveType(typeNode: ts.TypeNode, parentNode?: ts.Node, extract
     return { dataType: 'any' } as Tsoa.Type;
   }
 
+  if (typeNode.kind === ts.SyntaxKind.TypeLiteral) {
+    return { dataType: 'any' } as Tsoa.Type;
+  }
+
   if (typeNode.kind !== ts.SyntaxKind.TypeReference) {
     throw new GenerateMetadataError(`Unknown type: ${ts.SyntaxKind[typeNode.kind]}`);
   }
@@ -80,6 +84,10 @@ export function resolveType(typeNode: ts.TypeNode, parentNode?: ts.Node, extract
 
     if (typeReference.typeName.text === 'Promise' && typeReference.typeArguments && typeReference.typeArguments.length === 1) {
       return resolveType(typeReference.typeArguments[0]);
+    }
+
+    if (typeReference.typeName.text === 'String') {
+      return { dataType: 'string' } as Tsoa.Type;
     }
   }
 
@@ -295,16 +303,17 @@ function getReferenceType(type: ts.EntityName, extractEnum = true, genericTypes?
     const modelType = getModelTypeDeclaration(type);
     const properties = getModelProperties(modelType, genericTypes);
     const additionalProperties = getModelAdditionalProperties(modelType);
-    const inheritedProperties = getModelInheritedProperties(modelType);
+    const inheritedProperties = getModelInheritedProperties(modelType) || [];
 
     const referenceType = {
       additionalProperties,
       dataType: 'refObject',
       description: getNodeDescription(modelType),
-      properties: properties.concat(inheritedProperties),
+      properties: inheritedProperties,
       refName: refNameWithGenerics,
     } as Tsoa.ReferenceType;
 
+    referenceType.properties = (referenceType.properties as Tsoa.Property[]).concat(properties);
     localReferenceTypeCache[refNameWithGenerics] = referenceType;
 
     return referenceType;
@@ -438,7 +447,7 @@ function getModelTypeDeclaration(type: ts.EntityName) {
     ? (type as ts.Identifier).text
     : (type as ts.QualifiedName).right.text;
 
-  const modelTypes = statements
+  let modelTypes = statements
     .filter((node) => {
       if (!nodeIsUsable(node) || !MetadataGenerator.current.IsExportedNode(node)) {
         return false;
@@ -451,8 +460,35 @@ function getModelTypeDeclaration(type: ts.EntityName) {
   if (!modelTypes.length) {
     throw new GenerateMetadataError(`No matching model found for referenced type ${typeName}.`);
   }
+
   if (modelTypes.length > 1) {
-    const conflicts = modelTypes.map((modelType) => modelType.getSourceFile().fileName).join('"; "');
+    // remove types that are from typescript e.g. 'Account'
+    modelTypes = modelTypes.filter((modelType) => {
+      if (modelType.getSourceFile().fileName.replace(/\\/g, '/').toLowerCase().indexOf('node_modules/typescript') > -1) {
+        return false;
+      }
+
+      return true;
+    });
+
+    /**
+     * Model is marked with '@tsoaModel', indicating that it should be the 'canonical' model used
+     */
+    const designatedModels = modelTypes.filter(modelType => {
+      const isDesignatedModel = isExistJSDocTag(modelType, tag => tag.tagName.text === 'tsoaModel');
+      return isDesignatedModel;
+    });
+
+    if (designatedModels.length > 0) {
+      if (designatedModels.length > 1) {
+        throw new GenerateMetadataError(`Multiple models for ${typeName} marked with '@tsoaModel'; '@tsoaModel' should only be applied to one model.`);
+      }
+
+      modelTypes = designatedModels;
+    }
+  }
+  if (modelTypes.length > 1) {
+    const conflicts = modelTypes.map(modelType => modelType.getSourceFile().fileName).join('"; "');
     throw new GenerateMetadataError(`Multiple matching models found for referenced type ${typeName}; please make model names unique. Conflicts found: "${conflicts}".`);
   }
 
@@ -460,11 +496,19 @@ function getModelTypeDeclaration(type: ts.EntityName) {
 }
 
 function getModelProperties(node: UsableDeclaration, genericTypes?: ts.NodeArray<ts.TypeNode>): Tsoa.Property[] {
+  const isIgnored = (e: ts.TypeElement | ts.ClassElement) => {
+    const ignore = isExistJSDocTag(e, tag => tag.tagName.text === 'ignore');
+    return ignore;
+  };
+
   // Interface model
   if (node.kind === ts.SyntaxKind.InterfaceDeclaration) {
     const interfaceDeclaration = node as ts.InterfaceDeclaration;
     return interfaceDeclaration.members
-      .filter((member) => member.kind === ts.SyntaxKind.PropertySignature)
+      .filter(member => {
+        const ignore = isIgnored(member);
+        return !ignore && member.kind === ts.SyntaxKind.PropertySignature;
+      })
       .map((member: any) => {
         const propertyDeclaration = member as ts.PropertyDeclaration;
         const identifier = propertyDeclaration.name as ts.Identifier;
@@ -506,7 +550,7 @@ function getModelProperties(node: UsableDeclaration, genericTypes?: ts.NodeArray
           description: getNodeDescription(propertyDeclaration),
           name: identifier.text,
           required: !propertyDeclaration.questionToken,
-          type: resolveType(aType),
+          type: resolveType(aType, aType.parent),
           validators: getPropertyValidators(propertyDeclaration),
         } as Tsoa.Property;
       });
@@ -542,6 +586,10 @@ function getModelProperties(node: UsableDeclaration, genericTypes?: ts.NodeArray
   // Class model
   const classDeclaration = node as ts.ClassDeclaration;
   const properties = classDeclaration.members
+    .filter(member => {
+      const ignore = isIgnored(member);
+      return !ignore;
+    })
     .filter((member) => member.kind === ts.SyntaxKind.PropertyDeclaration)
     .filter((member) => hasPublicModifier(member)) as Array<ts.PropertyDeclaration | ts.ParameterDeclaration>;
 
@@ -651,7 +699,7 @@ function getNodeDescription(node: UsableDeclaration | ts.PropertyDeclaration | t
     symbol.flags = 0;
   }
 
-  const comments = symbol.getDocumentationComment();
+  const comments = symbol.getDocumentationComment(undefined);
   if (comments.length) { return ts.displayPartsToString(comments); }
 
   return undefined;
